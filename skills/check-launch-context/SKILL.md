@@ -1,6 +1,6 @@
 ---
 name: check-launch-context
-description: Check launch context by running /context in a fresh session, analyse the load context and trim it.
+description: Check launch context by running /context in a fresh session, suggest ways to minimise the load, then apply them.
 ---
 
 # Check launch context
@@ -32,7 +32,8 @@ cost, capture an empty folder too and compare.
 
 The script opens `claude` in a detached tmux terminal, waits for MCP servers
 (`MCP_SETTLE`, default 12 seconds), types `/context all`, saves the screen and closes the
-session. `/context` is a local command, so no model call is made and it costs nothing.
+session. `/context` is a local command, so it makes no model call. Set `BILLED=1` for a billed baseline too,
+which does make one. Do that whenever trimming may follow.
 
 | File | Use it for |
 |---|---|
@@ -58,32 +59,59 @@ folder: 17.4k interactive, 14k headless. Print mode has a smaller system prompt 
   (`~/.claude/projects/<folder>/*.jsonl`): `input_tokens` + `cache_creation_input_tokens` +
   `cache_read_input_tokens`. It includes the user's first message. On 2026-11-23 one
   session read 28.4k against a `/context` of 17.4k.
-- System prompt, built-in tools and built-in skills are mostly fixed. List them as such.
+- **`/context` can hide a saving.** Disabling skills cut its Skills line and raised its
+  System tools line by about as much, leaving the total flat, while billed tokens fell. Judge a
+  change on `billed_first_turn` (`BILLED=1`, one tiny call, under $0.01 on Haiku when
+  measured). Compare runs on the same model only: it is a print-mode figure, for before and after.
+- The system prompt is fixed. Built-in skills and tools are not.
 
-## 4. Analyse
+## 4. Suggest remediation
 
-Report a short table, largest first: item, tokens, loaded or deferred, verdict (keep,
-trim, remove, fixed), and the proposed change. Check each candidate before judging it:
+Always follow the measurement with suggestions. Give a table, largest saving first: item,
+tokens, fix, estimated saving, what is lost, scope (user or project). Read each candidate
+before judging it, and end with the few you recommend and the total they would save.
 
-| Surface | Look for |
+| Surface | Fixes, gentlest first |
 |---|---|
-| Memory files | Reference material that could be read on demand, duplicates, stale sections |
-| Skills | Installed plugins tied to one project: move to project scope or disable |
-| MCP servers | Duplicates, servers for one project at user scope, long instructions |
-| Custom agents | Long descriptions, agents for one project at user scope |
-| SessionStart hooks | Output that repeats or isn't used (run the hook and measure it) |
+| CLAUDE.md | Remove duplicates and stale text. Move path-specific rules to `.claude/rules/` with `paths:`. Move reference material to files read on demand, or a subfolder's CLAUDE.md. Skip irrelevant ancestors with `claudeMdExcludes` |
+| Plugins | Set `enabledPlugins` to false at user level, and true in the projects that use it |
+| Skills | `skillOverrides`: `name-only`, `user-invocable-only` or `off`. For your own: shorten the description, or `disable-model-invocation: true` |
+| Built-in skills | `skillOverrides` one by one, or `disableBundledSkills` for all |
+| MCP servers | Remove duplicates, move single-project servers out of user scope, disable per project in `/mcp`. Check `ENABLE_TOOL_SEARCH` isn't `false`, and that `alwaysLoad` is needed where set |
+| Custom agents | Shorten descriptions. Move single-project agents to that project's `.claude/agents/` |
+| Built-in tools | `permissions.deny` with a bare tool name removes it. Never deny `ToolSearch` |
+| Git instructions | `includeGitInstructions: false` if your own rules cover commits |
+| SessionStart hooks | Run each and measure its output. Print only on a problem |
+| Memory index | Prune `MEMORY.md`. Topic files load on demand |
 
-Don't move a rule that must always apply out of CLAUDE.md to save tokens: rules that
-aren't loaded aren't followed.
+Measured 2026-11-23, 2.1.330, Haiku, print mode, empty folder, 19,928 billed at baseline
+(three identical runs). One setup, so a guide to size only:
 
-## 5. Trim
+| Change | Billed tokens |
+|---|---|
+| Deny `Agent` | -3,273 |
+| `disableBundledSkills` | -1,338 |
+| Disable two plugins (10 skills) | -668 |
+| Deny one MCP server (25 deferred tools) | -485 |
+| `includeGitInstructions: false` | -480 |
+| Deny two custom agents | -347 |
+
+The other fixes come from the Claude Code docs and were not measured. Denying `Agent`
+removes subagents, so offer it only where they are never used. Don't move a rule that must
+always apply out of CLAUDE.md: rules that aren't loaded aren't followed.
+
+**Canopy:** if a Canopy server is connected (a `catalogue__search` tool is in the session),
+use `skill:canopy-manager/check-launch-context` instead. It owns what may be trimmed there.
+
+## 5. Apply and re-measure
 
 Ask which rows to apply, unless the user already said. Then, for each:
 
-1. Back up the file (`<file>.bak-YYYYMMDD`).
-2. Make the change, using `chunk-claude` for CLAUDE.md where it fits.
-3. Re-run step 2 in the same folder and report before and after. A change only shows in a
-   new session, so the second capture is the proof. No drop means say so and offer to revert.
+1. Back up the file (`<file>.bak-YYYYMMDD`), and make the change.
+2. Repeat step 2 in the same folder with `BILLED=1`, and report before and after.
+3. No drop in billed tokens, or something needed is gone: offer to revert.
+
+Finish with what was applied, what was declined, and the total saved.
 
 ## Data storage
 

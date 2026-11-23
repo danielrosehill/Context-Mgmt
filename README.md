@@ -6,7 +6,7 @@ Split out of [Claude-Rudder](https://github.com/danielrosehill/Claude-Rudder) on
 
 ## Skills
 
-- `check-launch-context`: run `/context` in a new terminal session, analyse the startup load and trim it
+- `check-launch-context`: run `/context` in a new terminal session, suggest ways to minimise the startup load, apply and re-measure
 - `context-gate`: checkpoint a cluttered session into a handover plan
 - `context-break-evaluator`: criteria for starting a fresh session
 - `chunk-claude-md`: prune a bloated `CLAUDE.md`
