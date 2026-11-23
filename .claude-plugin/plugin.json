@@ -1,0 +1,9 @@
+{
+  "name": "context-mgmt",
+  "version": "0.1.0",
+  "description": "Context management: measure and trim what a fresh session loads, checkpoint cluttered sessions, chunk CLAUDE.md, and keep CONTEXT.md and CLAUDE.md in sync.",
+  "author": { "name": "Daniel Rosehill", "url": "https://github.com/danielrosehill" },
+  "repository": "https://github.com/danielrosehill/Context-Mgmt",
+  "license": "MIT",
+  "keywords": ["context-management", "tokens", "claude-md", "startup-context", "handover"]
+}
